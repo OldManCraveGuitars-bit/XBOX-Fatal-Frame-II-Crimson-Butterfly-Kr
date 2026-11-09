@@ -1,0 +1,18 @@
+{
+  "version": "v0.75",
+  "game": "Fatal Frame II - Crimson Butterfly (Japan)",
+  "bundle": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75.ffpatch",
+  "bundle_sha256": "3b520fc43372eb49513b00eabd29654c7950b6ec4e7177e8728fdf5b6f0b11dd",
+  "xdelta_sha256": "2081fb24a7b8a89d068b58e7d9353647d5fc1512a68bb6a37f71fc60ca84d943",
+  "source": {
+    "name": "Fatal Frame II - Crimson Butterfly (Japan).iso",
+    "size": 7825162240,
+    "sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2"
+  },
+  "target": {
+    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75.xiso.iso",
+    "size": 2200043520,
+    "sha256": "1621d3694be6803e6c423da38fd8b95bbb16e4b34cf5e8fdf6535c6ac731b1f1"
+  },
+  "source_build": "UIFIX-20261109-R6"
+}

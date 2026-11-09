@@ -1,0 +1,67 @@
+{
+  "version": "v0.75",
+  "title_id": "5443000A",
+  "source": {
+    "name": "Fatal Frame II - Crimson Butterfly (Japan).iso",
+    "size": 7825162240,
+    "sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2"
+  },
+  "target": {
+    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75.xiso.iso",
+    "size": 2200043520,
+    "sha256": "1621d3694be6803e6c423da38fd8b95bbb16e4b34cf5e8fdf6535c6ac731b1f1"
+  },
+  "patcher": {
+    "version": "v0.75",
+    "source_sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2",
+    "target_sha256": "1621d3694be6803e6c423da38fd8b95bbb16e4b34cf5e8fdf6535c6ac731b1f1",
+    "size": 2200043520,
+    "files": 4157,
+    "modified_files": 100,
+    "original_modified": false,
+    "all_file_bytes_verified": true
+  },
+  "patcher_gui": {
+    "version": "v0.75",
+    "title_image": [
+      320,
+      228
+    ],
+    "gui_widgets_visible": true,
+    "patch_button_inside_window": true,
+    "client_size": [
+      820,
+      760
+    ]
+  },
+  "source_game_files_included": false,
+  "actual_gpu_capture_scope": "previous build: title/options/early menu/map",
+  "latest_ui_revision_new_device_test": false,
+  "manual_bilingual_review_complete": false,
+  "full_playthrough_verified": false,
+  "catalog": {
+    "records": 5492,
+    "translated": 4542,
+    "intentional_empty": 950,
+    "manually_compared_unique_pairs": 1475,
+    "hangul_glyphs": 837
+  },
+  "latest_ui_checks": {
+    "retail_option_function": "0x25830",
+    "width_routine_executed": "0xCBE80",
+    "gpu_calls_mocked": true,
+    "selection_states": 7,
+    "all_on_off_shadow_and_foreground_centers_match": true,
+    "on_moved_left_pixels": 23,
+    "off_unchanged": true,
+    "normal_mode_native_font_size": 21,
+    "normal_mode_single_sprite": true,
+    "unused_suffix_transparent": true,
+    "exact_encoded_frame_regions": 4,
+    "paper_join_equal_columns": 34,
+    "bilinear_gutters_match": true,
+    "device_accessed": false,
+    "gpu_verified": false
+  },
+  "guard_tests_passed": 9
+}

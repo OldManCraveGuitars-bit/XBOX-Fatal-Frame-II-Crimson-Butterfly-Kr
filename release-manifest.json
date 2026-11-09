@@ -1,0 +1,37 @@
+{
+  "version": "v0.75",
+  "download": "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75-Windows-Patcher.zip",
+  "size": 13247043,
+  "sha256": "0877829900a267feecf1c2774e2132bde5ff8518478b7a5010e2793b35a4ba0a",
+  "exe": {
+    "name": "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75-Patcher.exe",
+    "size": 13464401,
+    "sha256": "2472b3b6b36addf7601ecaad5947320c906d8b1c737a3b968ef5b45266f9fc59"
+  },
+  "source": {
+    "name": "Fatal Frame II - Crimson Butterfly (Japan).iso",
+    "size": 7825162240,
+    "sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2"
+  },
+  "target": {
+    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75.xiso.iso",
+    "size": 2200043520,
+    "sha256": "1621d3694be6803e6c423da38fd8b95bbb16e4b34cf5e8fdf6535c6ac731b1f1"
+  },
+  "original_game_files_included": false,
+  "package_entries": [
+    "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75-Patcher.exe",
+    "licenses/BLAKE3-Apache-2.0.txt",
+    "licenses/PyInstaller-COPYING.txt",
+    "licenses/Python-LICENSE.txt",
+    "licenses/tcl8.6-license.terms",
+    "licenses/THIRD-PARTY.md",
+    "licenses/tk8.6-license.terms",
+    "licenses/xdelta3-Apache-2.0.txt",
+    "licenses/xdelta3-README.md",
+    "licenses/xz-0BSD.txt",
+    "licenses/xz-COPYING.txt",
+    "사용법.txt",
+    "SHA256SUMS.txt"
+  ]
+}

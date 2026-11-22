@@ -3,3 +3,4 @@
 *.md text eol=lf
 *.json text eol=lf
 *.png binary
+*.patch text eol=lf whitespace=-blank-at-eol

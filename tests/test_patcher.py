@@ -21,8 +21,8 @@ def test_public_delta_inventory_and_hashes():
         validate_manifest(data)
         assert len(data['files']) == 4157
         assert sum(bool(x.get('delta')) for x in data['files']) == 99
-        assert data['version'] == CONFIG['version'] == 'v0.8'
-        assert data['target']['sha256'] == CONFIG['target']['sha256'] == 'd1fc3f110924927bec5f148c0a97fc47e08dc7d1e4cf41555bb861a1d0554c3c'
+        assert data['version'] == CONFIG['version'] == 'v0.81'
+        assert data['target']['sha256'] == CONFIG['target']['sha256'] == '85e7669d6fc729f7522be0e137397f0305a44ba16d336d29b6d615a682e5a109'
         assert not next(x for x in data['files'] if x['path'] == 'default.xbe').get('delta')
         assert all(n.startswith(('metadata/', 'deltas/')) or n == 'manifest.json' for n in archive.namelist())
         assert not any(n.endswith(('.iso', '.xbe', '.msg', '.tex', '.dds', '.ccm')) for n in archive.namelist())

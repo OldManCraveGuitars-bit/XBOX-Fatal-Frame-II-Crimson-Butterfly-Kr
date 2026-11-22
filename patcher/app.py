@@ -1,4 +1,4 @@
-"""Windows GUI / command-line launcher for the v0.8 release patch."""
+"""Windows GUI / command-line launcher for the v0.81 release patch."""
 from pathlib import Path
 import argparse
 import json
@@ -19,7 +19,7 @@ def resources():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='령 II: 붉은 나비 한국어 패치 v0.8')
+    parser = argparse.ArgumentParser(description='령 II: 붉은 나비 한국어 패치 v0.81')
     parser.add_argument('--source', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--report', type=Path)
@@ -50,7 +50,7 @@ def main():
     from tkinter import filedialog, messagebox, ttk
 
     window = tk.Tk()
-    window.title('령 II: 붉은 나비 한국어 패치 v0.8')
+    window.title('령 II: 붉은 나비 한국어 패치 v0.81')
     window.geometry('820x760')
     window.minsize(760, 720)
     window.option_add('*Font', ('맑은 고딕', 10))
@@ -62,7 +62,7 @@ def main():
     hero = tk.PhotoImage(file=str(title_path)).subsample(2, 2)
     window.hero_image = hero
     ttk.Label(frame, image=hero).grid(row=0, column=0, columnspan=2, pady=(0, 10))
-    ttk.Label(frame, text='령 II: 붉은 나비 · 한국어 패치 v0.8', font=('맑은 고딕', 17, 'bold')).grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 12))
+    ttk.Label(frame, text='령 II: 붉은 나비 · 한국어 패치 v0.81', font=('맑은 고딕', 17, 'bold')).grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 12))
     source = tk.StringVar()
     destination = tk.StringVar()
     busy = False
@@ -76,12 +76,12 @@ def main():
         path = filedialog.askopenfilename(title='일본판 원본 ISO', filetypes=[('ISO 파일', '*.iso'), ('모든 파일', '*.*')])
         if path:
             source.set(path)
-            destination.set(str(Path(path).parent / 'Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.xiso.iso'))
+            destination.set(str(Path(path).parent / 'Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81.xiso.iso'))
 
     def choose_destination():
         if busy:
             return
-        path = filedialog.asksaveasfilename(title='한국어 XISO 저장 위치', initialfile='Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.xiso.iso', defaultextension='.iso', filetypes=[('ISO 파일', '*.iso')])
+        path = filedialog.asksaveasfilename(title='한국어 XISO 저장 위치', initialfile='Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81.xiso.iso', defaultextension='.iso', filetypes=[('ISO 파일', '*.iso')])
         if path:
             destination.set(path)
 
@@ -164,7 +164,7 @@ def main():
         assert button.winfo_ismapped() and output.winfo_ismapped()
         assert button.winfo_y() + button.winfo_height() <= frame.winfo_height()
         if args.report:
-            args.report.write_text(json.dumps(dict(version='v0.8', title_image=[hero.width(), hero.height()],
+            args.report.write_text(json.dumps(dict(version='v0.81', title_image=[hero.width(), hero.height()],
                 gui_widgets_visible=True, patch_button_inside_window=True,
                 client_size=[window.winfo_width(), window.winfo_height()]), indent=2), encoding='utf-8')
         window.after(300, window.destroy)

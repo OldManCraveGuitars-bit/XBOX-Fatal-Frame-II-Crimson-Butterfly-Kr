@@ -7,10 +7,10 @@ python -m pip install -r requirements-build.txt
 ```
 
 `vendor/xdelta3/README.md`에 명시한 xdelta3 3.2.1 Windows x86-64를 준비합니다.
-원본과 검증된 v0.8 결과 XISO는 README의 해시와 같아야 합니다. ISO는 저장소와 릴리스에 포함하지 않습니다.
+원본과 검증된 v0.81 결과 XISO는 README의 해시와 같아야 합니다. ISO는 저장소와 릴리스에 포함하지 않습니다.
 
 ```powershell
-python tools/build_public_patch.py --source "D:\Games\Fatal Frame II - Crimson Butterfly (Japan).iso" --target "D:\Games\Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.xiso.iso" --xdelta vendor/xdelta3/xdelta3.exe --output patches/Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.ffpatch
+python tools/build_public_patch.py --source "D:\Games\Fatal Frame II - Crimson Butterfly (Japan).iso" --target "D:\Games\Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81.xiso.iso" --xdelta vendor/xdelta3/xdelta3.exe --output patches/Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81.ffpatch
 python -m pytest tests -q
 python tools/build_windows_release.py
 ```
@@ -20,9 +20,9 @@ python tools/build_windows_release.py
 다른 xdelta 빌드나 ZIP 생성 환경에서는 차분 바이트가 달라질 수 있습니다.
 
 ```powershell
-release/XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8-Patcher.exe --inspect --report build/inspect.json
-release/XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8-Patcher.exe --source "D:\Games\original.iso" --output "D:\Games\Korean.iso" --report build/exe-roundtrip.json
-release/XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8-Patcher.exe --ui-smoke --report build/exe-ui-smoke.json
+release/XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81-Patcher.exe --inspect --report build/inspect.json
+release/XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81-Patcher.exe --source "D:\Games\original.iso" --output "D:\Games\Korean.iso" --report build/exe-roundtrip.json
+release/XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81-Patcher.exe --ui-smoke --report build/exe-ui-smoke.json
 python tools/package_release.py
 ```
 

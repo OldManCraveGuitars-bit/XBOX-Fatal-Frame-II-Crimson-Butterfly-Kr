@@ -7,7 +7,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE = Path(os.environ.get('FFII_RELEASE_DIR', str(ROOT/'release')))
-STEM = 'XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8'
+STEM = 'XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81'
 
 
 def sha(path):
@@ -19,13 +19,15 @@ def main():
     config = json.loads((ROOT/'patcher/release-config.json').read_text(encoding='utf-8'))
     check = json.loads((ROOT/'build/exe-roundtrip.json').read_text(encoding='utf-8'))
     ui = json.loads((ROOT/'build/exe-ui-smoke.json').read_text(encoding='utf-8'))
-    assert check['version'] == 'v0.8' and check['target_sha256'] == config['target']['sha256']
+    assert check['version'] == 'v0.81' and check['target_sha256'] == config['target']['sha256']
     assert check['files'] == 4157 and check['modified_files'] == 99
     assert check['all_file_bytes_verified'] and not check['original_modified']
     assert ui['gui_widgets_visible'] and ui['patch_button_inside_window']
     exe = RELEASE/(STEM+'-Patcher.exe')
-    readme = ('령 II: 붉은 나비 Xbox 일본판 한국어 패치 v0.8\n'
+    readme = ('령 II: 붉은 나비 Xbox 일본판 한국어 패치 v0.81\n'
               '코리아 로컬라이즈 GiKakNo\n\n'
+              'v0.81: 저장 화면의 필요 블록 잘림과 빈 용량 옆 글자 조각을 수정했습니다.\n'
+              '통합 Android 에뮬 APK와 대응 소스는 같은 GitHub 릴리스에 별도로 첨부합니다.\n\n'
               f'1. {exe.name}를 실행합니다.\n'
               '2. 패치하지 않은 일본판 원본 ISO를 선택합니다.\n'
               '3. 새 ISO의 저장 경로를 고르고 한국어 ISO 만들기를 누릅니다.\n'
@@ -58,7 +60,7 @@ def main():
             assert hashlib.sha256(archive.read(name)).hexdigest() == expected
     checksum = sha(archive_path)
     (RELEASE/'SHA256SUMS.txt').write_text(checksum+'  '+archive_path.name+'\n', encoding='utf-8')
-    result = dict(version='v0.8', download=archive_path.name, size=archive_path.stat().st_size,
+    result = dict(version='v0.81', download=archive_path.name, size=archive_path.stat().st_size,
                   sha256=checksum, exe=dict(name=exe.name, size=exe.stat().st_size, sha256=sha(exe)),
                   source=config['source'], target=config['target'], original_game_files_included=False,
                   package_entries=[n for _, n in files]+['사용법.txt', 'SHA256SUMS.txt'])

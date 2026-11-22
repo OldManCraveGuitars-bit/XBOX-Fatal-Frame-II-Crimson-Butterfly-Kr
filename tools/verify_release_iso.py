@@ -29,7 +29,7 @@ def file_hash(disc, item):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Read-only v0.8 ISO verification')
+    parser = argparse.ArgumentParser(description='Read-only v0.81 ISO verification')
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--target', type=Path, required=True)
     parser.add_argument('--reference', type=Path)

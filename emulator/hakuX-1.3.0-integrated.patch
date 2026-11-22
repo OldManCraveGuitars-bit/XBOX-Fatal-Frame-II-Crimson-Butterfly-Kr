@@ -1,0 +1,624 @@
+--- a/hw/xbox/hle/core/xbe.h
++++ b/hw/xbox/hle/core/xbe.h
+@@ -17,7 +17,7 @@
+ #define HLE_XBE_SEC_PRELOAD    0x02u
+ #define HLE_XBE_SEC_EXECUTABLE 0x04u
+ 
+-#define HLE_XBE_MAX_SECTIONS 256   /* Fable has 107 */
++#define HLE_XBE_MAX_SECTIONS 512   /* Spikeout retail: 398; Korean v0.8: 399. */
+ #define HLE_XBE_MAX_LIBS     48
+ 
+ typedef struct HleXbeSection {
+--- a/hw/xbox/hle/pb/pbdraw.c
++++ b/hw/xbox/hle/pb/pbdraw.c
+@@ -7,6 +7,7 @@
+ #include "hw/xbox/hle/front/cmd.h"
+ #include "hw/xbox/hle/front/fe.h"
+ #include "hw/xbox/hle/pb/pbdraw.h"
++#include "hw/xbox/hle/pb/region_writes.h"
+ #include "hw/xbox/hle/hitch.h"
+ #include "hw/xbox/hle/pb/pbmode.h"
+ #include "hw/xbox/hle/pb/pbstate.h"
+@@ -117,6 +118,8 @@
+     uint64_t bound;                     /* when last bound as a target (g_pd.binds) */
+     bool cube;                          /* a cube texture's image, its faces' targets views */
+     uint64_t written;                   /* g_pd.wseq at its last draw, clear or copy */
++    HleRegionWrites region_writes;
++    uint64_t region_seq;                /* written covered by region_writes */
+     uint64_t edge_hash[2];              /* its bytes on its first and last page (rt_cpu_sync) */
+     bool cpu_used;                      /* the CPU wrote its memory (writeback) */
+     uint64_t mem_seq;                   /* g_pd.wseq when a texture took its memory as the
+@@ -1045,6 +1048,43 @@
+     return true;
+ }
+ 
++/* Unknown writers (CPU uploads, coherence landings) conservatively affect
++ * the whole image. Draws and clears record the clip they can actually write. */
++static void obj_write_region(PbObj *o, HleWriteRect r)
++{
++    if (o->written && o->region_seq != o->written)
++        hle_region_write(&o->region_writes,
++                          (HleWriteRect){0, 0, (int32_t)o->d.w, (int32_t)o->d.h}, o->written);
++    r.x1 = MAX(r.x1, 0); r.y1 = MAX(r.y1, 0);
++    r.x2 = MIN(r.x2, (int32_t)o->d.w); r.y2 = MIN(r.y2, (int32_t)o->d.h);
++    o->written = ++g_pd.wseq;
++    hle_region_write(&o->region_writes, r, o->written);
++    o->region_seq = o->written;
++}
++
++static uint64_t obj_region_written(const PbObj *o, HleWriteRect r)
++{
++    return o->region_seq == o->written ? hle_region_written(&o->region_writes, r) : o->written;
++}
++
++static void obj_write_draw(PbObj *o)
++{
++    const uint32_t hx = R(NV097_SET_SURFACE_CLIP_HORIZONTAL), vy = R(NV097_SET_SURFACE_CLIP_VERTICAL);
++    const bool swz = ((R(NV097_SET_SURFACE_FORMAT) >> 8) & 0xF) == 2;
++    const int32_t ax = MAX(g_pd.aa_x, 1u), ay = MAX(g_pd.aa_y, 1u);
++    const uint32_t x = swz ? 0 : hx & 0xFFFF, y = swz ? 0 : vy & 0xFFFF;
++    const uint32_t w = swz ? o->d.w : hx >> 16, h = swz ? o->d.h : vy >> 16;
++    HleWriteRect r = {(int32_t)x * ax, (int32_t)y * ay,
++                     (int32_t)(x+w) * ax, (int32_t)(y+h) * ay};
++    int32_t c[4];
++    if (window_clip(x+w, y+h, c)) {
++        r.x1 = MAX(r.x1, c[0]*ax); r.y1 = MAX(r.y1, c[1]*ay);
++        r.x2 = MIN(r.x2, c[2]*ax); r.y2 = MIN(r.y2, c[3]*ay);
++    }
++    if (!R(0x0358)) r.x2 = r.x1;  /* depth-only draws do not update colour */
++    obj_write_region(o, r);
++}
++
+ /* A video mode set since the display last followed one: the display is its
+  * size. CreateDevice binds its back buffer before it sets the mode, and the
+  * back buffer needn't be the frame shown: Hunter: The Reckoning - Redeemer
+@@ -1332,7 +1372,7 @@
+     }
+     hle_fe_commit();
+     if (g_pd.rt_obj && (c->flags & HLE_CLEAR_TARGET)) {
+-        g_pd.rt_obj->written = ++g_pd.wseq;
++        obj_write_region(g_pd.rt_obj, (HleWriteRect){r.x1,r.y1,r.x2,r.y2});
+         coh_drawn(g_pd.rt_obj);
+     }
+     if (c->flags & (HLE_CLEAR_ZBUFFER | HLE_CLEAR_STENCIL)) {
+@@ -2219,6 +2259,26 @@
+     if (!g_pd.on || !g_pd.device) {
+         return;
+     }
++    /* CopyRects can fill a depth buffer from CPU-backed words as well as
++     * colour. Genma Onimusha copies its pre-rendered background's D24S8
++     * occlusion image here every frame. object_at deliberately finds only
++     * colour, so without this upload the depth attachment stayed cleared
++     * and objects behind the background showed through it. Keep the copy's
++     * rectangle: pixels and stencil outside it must survive. */
++    for (unsigned i = 0; i < g_pd.nobjs; i++) {
++        PbObj *z = &g_pd.objs[i];
++        if (z->d.pa != dbase || z->d.pitch != dp || z->d.xfmt != HLE_XFMT_LIN_D24S8) {
++            continue;
++        }
++        if (dep) {
++            coh_wait(dep);               /* the queued memory copy must have landed */
++            dep = 0;
++        }
++        const HleRect r = { (int32_t)ox, (int32_t)oy, (int32_t)(ox + w), (int32_t)(oy + h) };
++        const int32_t pt[1][2] = { { (int32_t)ox, (int32_t)oy } };
++        hle_res_upload(z->id, dbase, dp, 1, &r, pt);
++        z->written = ++g_pd.wseq;
++    }
+     const uint32_t dst = object_at(dbase);
+     PbObj *dd = obj_of(dst);
+     if (!dd || !dd->d.pitch) {
+@@ -2547,19 +2607,27 @@
+                             uint32_t w, uint32_t h, PbObj *dst)
+ {
+     PbObj *src = NULL;
+-    for (unsigned i = 0; i < g_pd.nobjs; i++) {
++    const uint32_t bytes = fi->bpp / 8;
++    uint32_t x = 0, y = 0;
++    uint64_t newest = 0;
++    for (unsigned i = 0; bytes && pitch && i < g_pd.nobjs; i++) {
+         PbObj *o = &g_pd.objs[i];
+         const HleFmtInfo *oi = !o->cube && o->d.pitch == pitch && !o->d.parent ? hle_fmt_info(o->d.xfmt) : NULL;
+-        if (oi && !(oi->flags & HLE_FI_DEPTH) && oi->bpp == fi->bpp && o->d.pa < pa &&
+-            pa - o->d.pa < pitch * o->d.h && (!src || o->written > src->written)) {
+-            src = o;
+-        }
+-    }
+-    const uint32_t bytes = fi->bpp / 8, rel = src ? pa - src->d.pa : 0;
+-    const uint32_t x = bytes ? rel % pitch / bytes : 0, y = src ? rel / pitch : 0;
+-    if (!src || !bytes || rel % pitch % bytes || x + w > src->d.w || y + h > src->d.h || !src->written ||
+-        (dst && src->written <= dst->written)) {
+-        return dst ? dst->id : 0;           /* the image there is the newer */
++        if (!oi || (oi->flags & HLE_FI_DEPTH) || oi->bpp != fi->bpp || o->d.pa >= pa)
++            continue;
++        const uint32_t rel = pa - o->d.pa;
++        const uint32_t px = rel % pitch / bytes, py = rel / pitch;
++        if (rel % pitch % bytes || px > o->d.w || py > o->d.h ||
++            w > o->d.w - px || h > o->d.h - py)
++            continue;
++        const uint64_t seq = obj_region_written(o,
++            (HleWriteRect){(int32_t)px,(int32_t)py,(int32_t)(px+w),(int32_t)(py+h)});
++        if (seq > newest) {
++            src = o; newest = seq; x = px; y = py;
++        }
++    }
++    if (!src || !newest || (dst && newest <= dst->written)) {
++        return dst ? dst->id : 0;
+     }
+     if (!dst) {
+         dst = obj_of(object(pa, code, pitch, w, h));
+@@ -2579,7 +2647,7 @@
+     c->rect[0] = (HleRect){ (int32_t)x, (int32_t)y, (int32_t)(x + w), (int32_t)(y + h) };
+     hle_fe_commit();
+     hle_mem_written(pa, pitch * h);         /* the image holds the copy, not the memory */
+-    dst->written = ++g_pd.wseq;
++    obj_write_region(dst, (HleWriteRect){0,0,(int32_t)w,(int32_t)h});
+     coh_drawn(dst);
+     return dst->id;
+ }
+@@ -3177,10 +3245,6 @@
+         g_pd.blk_value = hle_fe_last_value();   /* after arena(): it may have kicked */
+     }
+     rt_first_write(false);
+-    if (g_pd.rt_obj) {
+-        g_pd.rt_obj->written = ++g_pd.wseq;
+-        coh_drawn(g_pd.rt_obj);
+-    }
+     if (g_pd.ds && ((R(0x030C) && R(0x035C)) || (R(0x032C) && (R(0x0360) & 0xFF)))) {
+         ds_written();                   /* depth test and writes, or stencil writes */
+     }
+@@ -3203,6 +3267,12 @@
+                                                                            : 1.0f / 16777216.0f;
+     d->ff_ubo = HLE_DRAW_NO_UBO;
+     drawlog(d, ff);
++    /* Textures read the image before this draw writes it. Guard the target
++     * before publishing the draw, after resolving those texture reads. */
++    if (g_pd.rt_obj) {
++        obj_write_draw(g_pd.rt_obj);
++        coh_drawn(g_pd.rt_obj);
++    }
+     HleCmdDraw *c = begin(HLE_OP_DRAW, sizeof(*c));
+     *c = *d;
+     hle_fe_commit();
+--- /dev/null
++++ b/hw/xbox/hle/pb/region_writes.h
+@@ -0,0 +1,52 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later */
++#ifndef HLE_REGION_WRITES_H
++#define HLE_REGION_WRITES_H
++#include <stdint.h>
++
++/* Conservative write history for aliases of part of an image. An image-wide
++ * sequence alone lets a write to its top half overwrite a newer bottom-half
++ * alias. Identical clip rectangles coalesce; eviction falls back to treating
++ * the evicted sequence as image-wide, never to missing an actual write. */
++#define HLE_REGION_WRITES_MAX 16
++typedef struct HleWriteRect { int32_t x1, y1, x2, y2; } HleWriteRect;
++typedef struct HleRegionWrites {
++    uint64_t floor;
++    unsigned n;
++    struct { HleWriteRect r; uint64_t seq; } e[HLE_REGION_WRITES_MAX];
++} HleRegionWrites;
++
++static inline void hle_region_write(HleRegionWrites *h, HleWriteRect r, uint64_t seq)
++{
++    if (r.x1 >= r.x2 || r.y1 >= r.y2) return;
++    unsigned at = h->n;
++    for (unsigned i = 0; i < h->n; i++) {
++        HleWriteRect q = h->e[i].r;
++        if (q.x1 == r.x1 && q.y1 == r.y1 && q.x2 == r.x2 && q.y2 == r.y2) {
++            at = i;
++            break;
++        }
++    }
++    if (at == HLE_REGION_WRITES_MAX) {
++        at = 0;
++        for (unsigned i = 1; i < h->n; i++)
++            if (h->e[i].seq < h->e[at].seq) at = i;
++        if (h->e[at].seq > h->floor) h->floor = h->e[at].seq;
++    } else if (at == h->n) {
++        h->n++;
++    }
++    h->e[at].r = r;
++    h->e[at].seq = seq;
++}
++
++static inline uint64_t hle_region_written(const HleRegionWrites *h, HleWriteRect r)
++{
++    if (r.x1 >= r.x2 || r.y1 >= r.y2) return 0;
++    uint64_t seq = h->floor;
++    for (unsigned i = 0; i < h->n; i++) {
++        HleWriteRect q = h->e[i].r;
++        if (q.x1 < r.x2 && r.x1 < q.x2 && q.y1 < r.y2 && r.y1 < q.y2 && h->e[i].seq > seq)
++            seq = h->e[i].seq;
++    }
++    return seq;
++}
++#endif
+--- a/hw/xbox/hle/vk/back.c
++++ b/hw/xbox/hle/vk/back.c
+@@ -2272,6 +2272,18 @@
+                       d->d.parent ? "a level or face" : !hle_surf_ensure(d) ? "no image" :
+                       !(d->aspect & VK_IMAGE_ASPECT_COLOR_BIT) ? "not colour" :
+                       !d->texel_bytes || c->pitch % d->texel_bytes ? "pitch" : NULL;
++    /* Guest D24S8 is depth << 8 | stencil, unlike Vulkan's buffer-copy
++     * layout. Decode its words through the same shader as colour aliases;
++     * nearest replication keeps the mask aligned with scaled backgrounds. */
++    if (d && d->d.xfmt == HLE_XFMT_LIN_D24S8 && hle_surf_ensure(d) &&
++        (g_hram.zero_copy || c->arena) && !d->d.parent && c->pitch && !(c->pitch & 3)) {
++        why = hle_zwrite_upload(cb_get(), g_back.cur, d, c);
++        if (!why) {
++            hle_surf_written(d);
++            g_back.st.uploads++;
++            return;
++        }
++    }
+     int32_t k = d ? (int32_t)MAX(d->scale, 1u) : 1, n = 0;
+     VkCommandBuffer cb = why ? VK_NULL_HANDLE : cb_get();
+     for (uint32_t i = 0; !why && i < c->nrects && i < HLE_CMD_MAX_RECTS; i++) {
+--- a/hw/xbox/hle/vk/back_int.h
++++ b/hw/xbox/hle/vk/back_int.h
+@@ -102,6 +102,8 @@
+ /* HLE_OP_ZWRITE: colour surface src's words as depth surface dst's depth
+  * (outside a render pass); NULL, or why it was skipped. */
+ const char *hle_zwrite_pass(VkCommandBuffer cb, unsigned slot, HleVkSurf *src, HleVkSurf *dst);
++/* CPU-backed linear D24S8 words, preserving depth/stencil outside the rects. */
++const char *hle_zwrite_upload(VkCommandBuffer cb, unsigned slot, HleVkSurf *dst, const HleCmdUpload *c);
+ const char *hle_zread_pass(VkCommandBuffer cb, unsigned slot, HleVkSurf *src, HleVkSurf *dst,
+                            const uint8_t map[4]);
+ /* Depth buffer s's depth-aspect view (VK_NULL_HANDLE: none). */
+@@ -115,6 +117,7 @@
+ /* A w x h scratch image of fmt (transfer source and destination) for texels
+  * on their way up; VK_NULL_HANDLE = none (the format cannot be blitted). */
+ VkImage hle_surf_scratch(VkFormat fmt, uint32_t w, uint32_t h);
++VkImage hle_surf_scratch_sampled(VkFormat fmt, uint32_t w, uint32_t h, VkImageView *view);
+ void hle_surf_sample_views(HleVkSurf *s, VkImageView *view, VkImageView *cube);
+ 
+ /* An A8R8G8B8 / X8R8G8B8 target's texels as a 32-bit texture of another
+--- a/hw/xbox/hle/vk/surf.c
++++ b/hw/xbox/hle/vk/surf.c
+@@ -487,15 +487,17 @@
+ static struct {
+     VkImage img;
+     VkDeviceMemory mem;
++    VkImageView view;                   /* sampled scratch images (depth-word uploads) */
+     VkFormat fmt;
+     uint32_t w, h;
++    bool sampled;
+ } g_down[HLE_MAX_DOWN];
+ 
+-static VkImage down_image(VkFormat fmt, uint32_t w, uint32_t h)
++static VkImage down_image(VkFormat fmt, uint32_t w, uint32_t h, bool sampled)
+ {
+     unsigned i = 0;
+     for (; i < HLE_MAX_DOWN && g_down[i].img; i++) {
+-        if (g_down[i].fmt == fmt && g_down[i].w == w && g_down[i].h == h) {
++        if (g_down[i].fmt == fmt && g_down[i].w == w && g_down[i].h == h && g_down[i].sampled == sampled) {
+             return g_down[i].img;
+         }
+     }
+@@ -506,7 +508,8 @@
+         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, .imageType = VK_IMAGE_TYPE_2D,
+         .format = fmt, .extent = { w, h, 1 }, .mipLevels = 1, .arrayLayers = 1,
+         .samples = VK_SAMPLE_COUNT_1_BIT, .tiling = VK_IMAGE_TILING_OPTIMAL,
+-        .usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
++        .usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
++                 (sampled ? VK_IMAGE_USAGE_SAMPLED_BIT : 0),
+         .sharingMode = VK_SHARING_MODE_EXCLUSIVE, .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED };
+     VkImage img;
+     if (T.vkCreateImage(g_hvk.dev, &ici, NULL, &img) != VK_SUCCESS) {
+@@ -529,6 +532,19 @@
+     g_down[i].fmt = fmt;
+     g_down[i].w = w;
+     g_down[i].h = h;
++    g_down[i].sampled = sampled;
++    if (sampled) {
++        VkImageViewCreateInfo vci = {
++            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, .image = img,
++            .viewType = VK_IMAGE_VIEW_TYPE_2D, .format = fmt,
++            .subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 } };
++        if (T.vkCreateImageView(g_hvk.dev, &vci, NULL, &g_down[i].view) != VK_SUCCESS) {
++            T.vkDestroyImage(g_hvk.dev, img, NULL);
++            T.vkFreeMemory(g_hvk.dev, mem, NULL);
++            memset(&g_down[i], 0, sizeof(g_down[i]));
++            return VK_NULL_HANDLE;
++        }
++    }
+     return img;
+ }
+ 
+@@ -537,7 +553,22 @@
+     VkFormatProperties fp;
+     vkGetPhysicalDeviceFormatProperties(g_hvk.phys, fmt, &fp);
+     VkFormatFeatureFlags need = VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
+-    return (fp.optimalTilingFeatures & need) == need ? down_image(fmt, w, h) : VK_NULL_HANDLE;
++    return (fp.optimalTilingFeatures & need) == need ? down_image(fmt, w, h, false) : VK_NULL_HANDLE;
++}
++
++/* Sampled scratch has a separate cache entry from transfer-only scratch.
++ * Its view lives until destroy_all, after the queue is idle. */
++VkImage hle_surf_scratch_sampled(VkFormat fmt, uint32_t w, uint32_t h, VkImageView *view)
++{
++    VkImage img = down_image(fmt, w, h, true);
++    *view = VK_NULL_HANDLE;
++    for (unsigned i = 0; img && i < HLE_MAX_DOWN; i++) {
++        if (g_down[i].img == img) {
++            *view = g_down[i].view;
++            break;
++        }
++    }
++    return img;
+ }
+ 
+ VkImage hle_surf_down(VkCommandBuffer cb, HleVkSurf *o, VkImageLayout layout,
+@@ -546,7 +577,7 @@
+     VkFormatProperties fp;
+     vkGetPhysicalDeviceFormatProperties(g_hvk.phys, o->fmt, &fp);
+     VkFormatFeatureFlags need = VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
+-    VkImage d = (fp.optimalTilingFeatures & need) == need ? down_image(o->fmt, w, h)
++    VkImage d = (fp.optimalTilingFeatures & need) == need ? down_image(o->fmt, w, h, false)
+                                                           : VK_NULL_HANDLE;
+     if (!d) {
+         return VK_NULL_HANDLE;
+@@ -580,6 +611,9 @@
+     hle_vk_check(r, "vkDeviceWaitIdle (surfaces)");
+     for (unsigned i = 0; i < HLE_MAX_DOWN; i++) {
+         if (g_down[i].img) {
++            if (g_down[i].view) {
++                T.vkDestroyImageView(g_hvk.dev, g_down[i].view, NULL);
++            }
+             T.vkDestroyImage(g_hvk.dev, g_down[i].img, NULL);
+             T.vkFreeMemory(g_hvk.dev, g_down[i].mem, NULL);
+         }
+--- a/hw/xbox/hle/vk/zread.c
++++ b/hw/xbox/hle/vk/zread.c
+@@ -10,6 +10,7 @@
+ #include "hw/xbox/hle/hle.h"
+ #include "hw/xbox/hle/shader/glsl_compile.h"
+ #include "hw/xbox/hle/vk/back_int.h"
++#include "hw/xbox/hle/vk/guest_ram.h"
+ 
+ #define T (g_hvk.t)
+ #define ZR_SLOTS    HLE_FRAMES          /* one per command buffer in flight */
+@@ -64,8 +65,10 @@
+ static const char k_fs_zw[] =
+     "#version 450\n"
+     "layout(set = 0, binding = 0) uniform sampler2D ct;\n"
++    "layout(push_constant) uniform P { ivec4 map; } pc;\n"
+     "void main() {\n"
+-    "  uvec4 b = uvec4(clamp(texelFetch(ct, ivec2(gl_FragCoord.xy), 0), 0.0, 1.0) * 255.0 + 0.5);\n"
++    "  ivec2 q = (ivec2(gl_FragCoord.xy) - pc.map.zw) / max(pc.map.y, 1);\n"
++    "  uvec4 b = uvec4(clamp(texelFetch(ct, q, 0), 0.0, 1.0) * 255.0 + 0.5);\n"
+     "  uint d = b.a << 16 | b.r << 8 | b.g;\n"
+     "  gl_FragDepth = float(d) / 16777215.0;\n"
+     "}\n";
+@@ -73,10 +76,11 @@
+ static const char k_fs_zws[] =
+     "#version 450\n"
+     "layout(set = 0, binding = 0) uniform sampler2D ct;\n"
+-    "layout(push_constant) uniform P { uvec4 map; } pc;\n"
++    "layout(push_constant) uniform P { ivec4 map; } pc;\n"
+     "void main() {\n"
+-    "  uint s = uint(clamp(texelFetch(ct, ivec2(gl_FragCoord.xy), 0).b, 0.0, 1.0) * 255.0 + 0.5);\n"
+-    "  if (((s >> pc.map.x) & 1u) == 0u) discard;\n"
++    "  ivec2 q = (ivec2(gl_FragCoord.xy) - pc.map.zw) / max(pc.map.y, 1);\n"
++    "  uint s = uint(clamp(texelFetch(ct, q, 0).b, 0.0, 1.0) * 255.0 + 0.5);\n"
++    "  if (((s >> uint(pc.map.x)) & 1u) == 0u) discard;\n"
+     "}\n";
+ 
+ static struct {
+@@ -339,7 +343,8 @@
+     return g_zr.used < ZR_PER_SLOT ? g_zr.set[slot][g_zr.used++] : VK_NULL_HANDLE;
+ }
+ 
+-const char *hle_zwrite_pass(VkCommandBuffer cb, unsigned slot, HleVkSurf *src, HleVkSurf *dst)
++static const char *zwrite_rect(VkCommandBuffer cb, unsigned slot, VkImageView sv,
++                                VkImageLayout layout, HleVkSurf *dst, VkRect2D rect, uint32_t scale)
+ {
+     if (!init()) {
+         return "setup failed";
+@@ -354,14 +359,8 @@
+     if (!set) {
+         return "too many this recording";
+     }
+-    VkImageView sv = src->view, cube = VK_NULL_HANDLE;
+-    if (src->general) {
+-        hle_surf_sample_views(src, &sv, &cube);
+-    } else {
+-        hle_surf_transition(cb, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+-    }
+-    VkDescriptorImageInfo ii[2] = { { g_zr.smp, sv, src->layout },
+-                                    { g_zr.smp, sv, src->layout } };
++    VkDescriptorImageInfo ii[2] = { { g_zr.smp, sv, layout },
++                                    { g_zr.smp, sv, layout } };
+     VkWriteDescriptorSet w[2];
+     for (unsigned i = 0; i < 2; i++) {
+         w[i] = (VkWriteDescriptorSet){
+@@ -371,7 +370,6 @@
+     }
+     T.vkUpdateDescriptorSets(g_hvk.dev, 2, w, 0, NULL);
+     hle_surf_transition(cb, dst, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+-    uint32_t fw = MIN(src->w, dst->w), fh = MIN(src->h, dst->h);
+     VkRenderingAttachmentInfo za = {
+         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO, .imageView = dst->view,
+         .imageLayout = dst->layout, .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+@@ -380,27 +378,81 @@
+     sa.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;    /* the stencil comes from the words' low byte */
+     sa.clearValue.depthStencil.stencil = 0;
+     VkRenderingInfo ri = { .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+-                           .renderArea = { { 0, 0 }, { fw, fh } }, .layerCount = 1,
++                           .renderArea = rect, .layerCount = 1,
+                            .pDepthAttachment = &za, .pStencilAttachment = stencil ? &sa : NULL };
+     T.vkCmdBeginRendering(cb, &ri);
+-    VkViewport vp = { 0, 0, (float)fw, (float)fh, 0.0f, 1.0f };
+-    VkRect2D sc = { { 0, 0 }, { fw, fh } };
++    VkViewport vp = { (float)rect.offset.x, (float)rect.offset.y,
++                      (float)rect.extent.width, (float)rect.extent.height, 0.0f, 1.0f };
++    VkRect2D sc = rect;
++    int32_t pcv[4] = { 0, (int32_t)scale, rect.offset.x, rect.offset.y };
+     T.vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, p);
+     hle_draw_state_lost();
+     T.vkCmdSetViewport(cb, 0, 1, &vp);
+     T.vkCmdSetScissor(cb, 0, 1, &sc);
+     T.vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, g_zr.pl, 0, 1, &set, 0, NULL);
++    T.vkCmdPushConstants(cb, g_zr.pl, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pcv), pcv);
+     T.vkCmdDraw(cb, 3, 1, 0, 0);
+     if (stencil) {
+         T.vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pb);
+         for (uint32_t bit = 0; bit < 8; bit++) {
+-            const uint32_t pcv[4] = { bit, 0, 0, 0 };
++            pcv[0] = (int32_t)bit;
+             T.vkCmdSetStencilWriteMask(cb, VK_STENCIL_FACE_FRONT_AND_BACK, 1u << bit);
+             T.vkCmdPushConstants(cb, g_zr.pl, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pcv), pcv);
+             T.vkCmdDraw(cb, 3, 1, 0, 0);
+         }
+     }
+     T.vkCmdEndRendering(cb);
++    return NULL;
++}
++
++const char *hle_zwrite_pass(VkCommandBuffer cb, unsigned slot, HleVkSurf *src, HleVkSurf *dst)
++{
++    VkImageView sv = src->view, cube = VK_NULL_HANDLE;
++    if (src->general) {
++        hle_surf_sample_views(src, &sv, &cube);
++    } else {
++        hle_surf_transition(cb, src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
++    }
++    VkRect2D rect = { {0, 0}, {MIN(src->w, dst->w), MIN(src->h, dst->h)} };
++    return zwrite_rect(cb, slot, sv, src->layout, dst, rect, 1);
++}
++
++const char *hle_zwrite_upload(VkCommandBuffer cb, unsigned slot, HleVkSurf *dst, const HleCmdUpload *c)
++{
++    const int32_t scale = (int32_t)MAX(dst->scale, 1u);
++    for (uint32_t i = 0; i < c->nrects && i < HLE_CMD_MAX_RECTS; i++) {
++        const HleRect *r = &c->rect[i];
++        const int32_t w = MIN(r->x2 - r->x1, (int32_t)dst->d.w - c->x[i]);
++        const int32_t h = MIN(r->y2 - r->y1, (int32_t)dst->d.h - c->y[i]);
++        if (r->x1 < 0 || r->y1 < 0 || c->x[i] < 0 || c->y[i] < 0 || w <= 0 || h <= 0 ||
++            (uint64_t)(r->x1 + w) * 4 > c->pitch) {
++            continue;
++        }
++        VkImageView sv;
++        VkImage tmp = hle_surf_scratch_sampled(VK_FORMAT_B8G8R8A8_UNORM, (uint32_t)w, (uint32_t)h, &sv);
++        if (!tmp || !sv) {
++            return "no depth-word scratch image";
++        }
++        hle_img_barrier(cb, tmp, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
++                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++        const uint32_t at = c->pa + (uint32_t)r->y1 * c->pitch + (uint32_t)r->x1 * 4;
++        VkBufferImageCopy bc = {
++            .bufferOffset = c->arena ? (VkDeviceSize)(c->arena - 1) + (at - c->lo) : at,
++            .bufferRowLength = c->pitch / 4,
++            .imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
++            .imageExtent = {(uint32_t)w, (uint32_t)h, 1} };
++        T.vkCmdCopyBufferToImage(cb, c->arena ? g_harena.buf : g_hram.buf, tmp,
++                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bc);
++        hle_img_barrier(cb, tmp, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
++                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
++        VkRect2D rect = { {c->x[i] * scale, c->y[i] * scale},
++                          {(uint32_t)(w * scale), (uint32_t)(h * scale)} };
++        const char *why = zwrite_rect(cb, slot, sv, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
++                                      dst, rect, (uint32_t)scale);
++        if (why) {
++            return why;
++        }
++    }
+     return NULL;
+ }
+ 
+--- a/tests/hle/test_xbe.c
++++ b/tests/hle/test_xbe.c
+@@ -120,7 +120,7 @@
+ /* fx_build_xbe() has room for 18 section headers; this moves them to
+  * 0x1000 (names after them) so nsec up to HLE_XBE_MAX_SECTIONS + 1 fit.
+  * Section i is "S<i>" at 0x11000 + i * 0x1000, the last one "XGRPH". */
+-static uint8_t big[0x6000];
++static uint8_t big[0x1000 + (HLE_XBE_MAX_SECTIONS + 1) * 65];
+ 
+ static uint32_t build_many_sections(unsigned nsec)
+ {
+@@ -169,6 +169,17 @@
+     HT_EQ_U32(x.nlibs, 3);
+     HT_EQ_U32(x.title_id, 0x4D530064);
+ 
++    /* Spikeout's retail and Korean images must keep their late sections,
++     * including the resources reached only after the title screen. */
++    for (unsigned count = 398; count <= 399; count++) {
++        len = build_many_sections(count);
++        HT_EQ_INT(hle_xbe_parse(big, len, &x), HLE_XBE_OK);
++        HT_EQ_U32(x.nsections, count);
++        HT_EQ_STR(x.sections[count - 1].name, "XGRPH");
++        HT_CHECK(hle_xbe_section_at(&x, 0x11000 + (count - 1) * 0x1000 + 4) ==
++                 &x.sections[count - 1]);
++    }
++
+     len = build_many_sections(HLE_XBE_MAX_SECTIONS);
+     HT_EQ_INT(hle_xbe_parse(big, len, &x), HLE_XBE_OK);
+     HT_EQ_U32(x.nsections, HLE_XBE_MAX_SECTIONS);
+--- /dev/null
++++ b/tests/hle/test_region_writes.c
+@@ -0,0 +1,34 @@
++#include "hw/xbox/hle/pb/region_writes.h"
++#include <assert.h>
++#include <stdio.h>
++
++int main(void)
++{
++    HleRegionWrites h = {0};
++    HleWriteRect all = {0,0,320,480}, top = {0,0,320,240}, bottom = {0,240,320,480};
++    hle_region_write(&h,all,100);
++    /* FFII: the bottom alias is written at 110. Later blur draws only
++     * affect the parent's top 240 rows. They must not supersede that alias. */
++    hle_region_write(&h,top,120);
++    assert(hle_region_written(&h,bottom) == 100);
++    assert(hle_region_written(&h,bottom) <= 110);
++    assert(hle_region_written(&h,top) == 120);
++    hle_region_write(&h,bottom,130);
++    assert(hle_region_written(&h,bottom) > 110);
++    /* A real parent write across the boundary still invalidates the part. */
++    hle_region_write(&h,(HleWriteRect){0,239,320,241},140);
++    assert(hle_region_written(&h,bottom) == 140);
++    for (unsigned i=0; i<1000; i++) hle_region_write(&h,top,200+i);
++    assert(h.n == 4);
++    assert(hle_region_written(&h,bottom) == 140);
++    hle_region_write(&h,(HleWriteRect){0,0,0,480},9999);
++    assert(hle_region_written(&h,top) == 1199);
++    assert(hle_region_written(&h,(HleWriteRect){20,0,20,100}) == 0);
++    /* Full history: evicted writes remain conservative for every alias. */
++    HleRegionWrites full = {0};
++    for (unsigned i=0; i<17; i++)
++        hle_region_write(&full,(HleWriteRect){(int)i,0,(int)i+1,1},i+1);
++    assert(full.n == HLE_REGION_WRITES_MAX);
++    assert(hle_region_written(&full,(HleWriteRect){0,0,1,1}) >= 1);
++    puts("region-write regression checks passed");
++}
+--- a/tests/hle/CMakeLists.txt
++++ b/tests/hle/CMakeLists.txt
+@@ -14,6 +14,10 @@
+ endif()
+ 
+ enable_testing()
++
++# Image-alias write coverage needs no Vulkan device or external libraries.
++add_executable(test_region_writes test_region_writes.c)
++add_test(NAME test_region_writes COMMAND test_region_writes)
+ 
+ # Pure modules under test. P1a appends to this list.
+ set(HLE_PURE_SOURCES
+--- a/native/net/nat.c
++++ b/native/net/nat.c
+@@ -53,10 +53,10 @@
+ 
+ /* ------------------------------------------------- libslirp's callbacks */
+ 
+-static slirp_ssize_t cb_send_packet(const void *buf, size_t len, void *opaque)
++static ssize_t cb_send_packet(const void *buf, size_t len, void *opaque)
+ {
+     nc_net_deliver(buf, len);
+-    return (slirp_ssize_t)len;
++    return (ssize_t)len;
+ }
+ 
+ static void cb_guest_error(const char *msg, void *opaque)

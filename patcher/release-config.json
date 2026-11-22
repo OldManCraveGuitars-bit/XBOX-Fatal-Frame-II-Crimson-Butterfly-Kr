@@ -1,8 +1,8 @@
 {
-  "version": "v0.8",
+  "version": "v0.81",
   "game": "Fatal Frame II - Crimson Butterfly (Japan)",
-  "bundle": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.ffpatch",
-  "bundle_sha256": "5da9fae35bd8f1d4f86d0b479535de2752e614696dd6827644e1aa9a516ee1fb",
+  "bundle": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81.ffpatch",
+  "bundle_sha256": "575e6c2335e654d3b6ea51e5ad5e6c4e5f8f37689af0f96e35da2af7d4434eb4",
   "xdelta_sha256": "2081fb24a7b8a89d068b58e7d9353647d5fc1512a68bb6a37f71fc60ca84d943",
   "source": {
     "name": "Fatal Frame II - Crimson Butterfly (Japan).iso",
@@ -10,11 +10,11 @@
     "sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2"
   },
   "target": {
-    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.xiso.iso",
+    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.81.xiso.iso",
     "size": 2200043520,
-    "sha256": "d1fc3f110924927bec5f148c0a97fc47e08dc7d1e4cf41555bb861a1d0554c3c"
+    "sha256": "85e7669d6fc729f7522be0e137397f0305a44ba16d336d29b6d615a682e5a109"
   },
-  "source_build": "NOXBE-20261122-COMMA-COLOR",
+  "source_build": "NOXBE-20261123-SAVEUI",
   "build_profile": "original-xbe-resource-only",
   "xbe_modified": false,
   "xbe_sha256": "60a20fcc1cbfad2c7178208c0bfda7f62c91188a03ebe08ced06c622e3797ada"

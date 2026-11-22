@@ -1,5 +1,5 @@
 {
-  "version": "v0.75",
+  "version": "v0.8",
   "title_id": "5443000A",
   "source": {
     "name": "Fatal Frame II - Crimson Butterfly (Japan).iso",
@@ -7,22 +7,22 @@
     "sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2"
   },
   "target": {
-    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75.xiso.iso",
+    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.xiso.iso",
     "size": 2200043520,
-    "sha256": "1621d3694be6803e6c423da38fd8b95bbb16e4b34cf5e8fdf6535c6ac731b1f1"
+    "sha256": "d1fc3f110924927bec5f148c0a97fc47e08dc7d1e4cf41555bb861a1d0554c3c"
   },
   "patcher": {
-    "version": "v0.75",
+    "version": "v0.8",
     "source_sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2",
-    "target_sha256": "1621d3694be6803e6c423da38fd8b95bbb16e4b34cf5e8fdf6535c6ac731b1f1",
+    "target_sha256": "d1fc3f110924927bec5f148c0a97fc47e08dc7d1e4cf41555bb861a1d0554c3c",
     "size": 2200043520,
     "files": 4157,
-    "modified_files": 100,
+    "modified_files": 99,
     "original_modified": false,
     "all_file_bytes_verified": true
   },
   "patcher_gui": {
-    "version": "v0.75",
+    "version": "v0.8",
     "title_image": [
       320,
       228
@@ -34,34 +34,182 @@
       760
     ]
   },
-  "source_game_files_included": false,
-  "actual_gpu_capture_scope": "previous build: title/options/early menu/map",
-  "latest_ui_revision_new_device_test": false,
-  "manual_bilingual_review_complete": false,
-  "full_playthrough_verified": false,
-  "catalog": {
-    "records": 5492,
-    "translated": 4542,
-    "intentional_empty": 950,
-    "manually_compared_unique_pairs": 1475,
-    "hangul_glyphs": 837
+  "independent_iso": {
+    "version": "v0.8",
+    "files": 4157,
+    "changed_files": 99,
+    "unchanged_files": 4058,
+    "target_sha256": "d1fc3f110924927bec5f148c0a97fc47e08dc7d1e4cf41555bb861a1d0554c3c",
+    "all_file_paths_sizes_and_hashes_verified": true,
+    "all_file_hashes_match_reference": true,
+    "xbe_byte_identical_to_original": true,
+    "xbe_sha256": "60a20fcc1cbfad2c7178208c0bfda7f62c91188a03ebe08ced06c622e3797ada",
+    "xbe_media_field": "0x202",
+    "hdd_media_patch_applied": false,
+    "source_opened_read_only": true,
+    "target_opened_read_only": true
   },
-  "latest_ui_checks": {
-    "retail_option_function": "0x25830",
-    "width_routine_executed": "0xCBE80",
-    "gpu_calls_mocked": true,
-    "selection_states": 7,
-    "all_on_off_shadow_and_foreground_centers_match": true,
-    "on_moved_left_pixels": 23,
-    "off_unchanged": true,
-    "normal_mode_native_font_size": 21,
-    "normal_mode_single_sprite": true,
-    "unused_suffix_transparent": true,
-    "exact_encoded_frame_regions": 4,
-    "paper_join_equal_columns": 34,
-    "bilinear_gutters_match": true,
-    "device_accessed": false,
+  "source_game_files_included": false,
+  "guard_tests_passed": 9,
+  "build_profile": "original-xbe-resource-only",
+  "data_safety": {
+    "catalog_sha256": "7bfc27a4afcedd81608c64792695cd1dd0ec5743576ff7d8fff0bba01afaba1e",
+    "message": {
+      "leaves": 5492,
+      "pointer_tables": 85,
+      "all_leaf_bytes_and_controls_match": true,
+      "shared_pointer_aliases_preserved": true,
+      "intentional_empty_slots": 950,
+      "empty_leaf_original_padding_preserved": 1,
+      "longest_encoded_leaf": 1085,
+      "bytes": 232732,
+      "sector_read": 233472,
+      "gap_before_next_known_buffer": 16384,
+      "full_heap_allocation_proven": false
+    },
+    "file_set": {
+      "files": 4157,
+      "actually_changed": 99,
+      "unchanged": 4058,
+      "unexpected_gameplay_changes": 0,
+      "fhd_unchanged": true,
+      "save_certificate_unchanged": true
+    },
+    "image_resources": {
+      "changed_files": 98,
+      "textures_in_changed_files": 691,
+      "resource_lengths_descriptors_geometry_formats_mips_unchanged": true
+    },
+    "xbe": {
+      "byte_identical_to_original": true,
+      "sha256": "60a20fcc1cbfad2c7178208c0bfda7f62c91188a03ebe08ced06c622e3797ada",
+      "changed_bytes": 0,
+      "original_section_layouts_preserved": true,
+      "message_address_references": {
+        "scanned_section": ".text",
+        "method": "linear x86 disassembly, absolute memory/immediate operands",
+        "instructions": 195,
+        "unique_root_offsets": [
+          0,
+          28,
+          32,
+          48,
+          136,
+          140,
+          144,
+          160,
+          172,
+          176,
+          192,
+          196,
+          236,
+          240,
+          244,
+          260,
+          268,
+          292,
+          300,
+          304,
+          308
+        ],
+        "all_found_addresses_in_unchanged_root_table": true,
+        "all_indirect_references_proven": false
+      }
+    },
+    "subtitles": {
+      "movie_tracks": 71,
+      "movie_cues": 253,
+      "original_scene_and_movie_timing_preserved": true,
+      "additional_ending_credit_trigger": false,
+      "all_references_nonempty": true,
+      "original_voice_binary_unchanged": true,
+      "existing_cue_credit": {
+        "display_implemented": true,
+        "text": "코리아 로컬라이즈 GiKakNo",
+        "mode": "existing-ending-final-dialogue-second-line",
+        "active_tracks": [
+          37,
+          51,
+          52
+        ],
+        "entries": [
+          {
+            "track": 37,
+            "file": "../bin/movie/s1050.pss",
+            "message_id": "78:589",
+            "start_frame": 7496,
+            "end_frame": 7592,
+            "seconds": 3.2
+          },
+          {
+            "track": 51,
+            "file": "../bin/movie/s1020.pss",
+            "message_id": "78:406",
+            "start_frame": 4084,
+            "end_frame": 4166,
+            "seconds": 2.7333333333333334
+          },
+          {
+            "track": 52,
+            "file": "../bin/movie/s1030.pss",
+            "message_id": "78:418",
+            "start_frame": 2105,
+            "end_frame": 2189,
+            "seconds": 2.8
+          }
+        ],
+        "requires_captions_on": true,
+        "additional_cue_added": false,
+        "staff_roll_end_separate_credit": false,
+        "runtime_visual_verified": false
+      }
+    },
+    "device_or_game_launched": false,
+    "complete_playthrough_or_hardware_guarantee": false
+  },
+  "glyph_color": {
+    "catalog_unchanged": true,
+    "comma_character": ",",
+    "comma_code": "52",
+    "all_generated_glyphs_color_checked": 839,
+    "all_visible_generated_pixels_neutral": true,
+    "comma_shape_alpha_difference_bounded": true,
+    "palettes_byte_identical": true,
+    "unmodified_icons_protected_by_unallocated_pixel_test": true,
+    "xbe_unchanged": true,
     "gpu_verified": false
   },
-  "guard_tests_passed": 9
+  "native_text": {
+    "records_considered": 4542,
+    "unique_lines": 6052,
+    "unique_pages": 3630,
+    "native_dispatches": 95625,
+    "native_quads": 87895,
+    "all_native_line_widths_and_newline_positions_match": true,
+    "gpu_verified": false,
+    "surrounding_ui_bounds_verified": false
+  },
+  "ending_credit": {
+    "text": "코리아 로컬라이즈 GiKakNo",
+    "entries": 3,
+    "native_boundary_cases": 48,
+    "mode": "existing-ending-final-dialogue-second-line",
+    "requires_captions_on": true,
+    "original_cue_timing_preserved": true,
+    "staff_roll_end_separate_card": false
+  },
+  "subtitles": {
+    "registered_tables": 71,
+    "tables_with_cues": 44,
+    "tables_without_cues": 27,
+    "original_cues": 253,
+    "default_on": false,
+    "promotional_movies_with_added_captions": 0
+  },
+  "current_revision_gpu_verified": false,
+  "device_accessed_for_v08": false,
+  "manual_bilingual_review_complete": false,
+  "all_images_manual_review_complete": false,
+  "full_playthrough_verified": false,
+  "complete": false
 }

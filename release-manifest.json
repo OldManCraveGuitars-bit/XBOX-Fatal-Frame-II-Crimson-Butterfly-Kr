@@ -1,12 +1,12 @@
 {
-  "version": "v0.75",
-  "download": "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75-Windows-Patcher.zip",
-  "size": 13247043,
-  "sha256": "0877829900a267feecf1c2774e2132bde5ff8518478b7a5010e2793b35a4ba0a",
+  "version": "v0.8",
+  "download": "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8-Windows-Patcher.zip",
+  "size": 13257879,
+  "sha256": "9eb020a3f5a1a6a3ae50ff2d8aab33609c6f23394bb19136f194a9ee10ab111b",
   "exe": {
-    "name": "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75-Patcher.exe",
-    "size": 13464401,
-    "sha256": "2472b3b6b36addf7601ecaad5947320c906d8b1c737a3b968ef5b45266f9fc59"
+    "name": "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8-Patcher.exe",
+    "size": 13473864,
+    "sha256": "401a3a472d03a7fe49f408d47555e582ff75c2eebf761aa8c719c619a036b622"
   },
   "source": {
     "name": "Fatal Frame II - Crimson Butterfly (Japan).iso",
@@ -14,13 +14,13 @@
     "sha256": "56a2def60db6ca1d4bfe0525fef72720b87719cca9dfe85d8698afc8c47968e2"
   },
   "target": {
-    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75.xiso.iso",
+    "name": "Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8.xiso.iso",
     "size": 2200043520,
-    "sha256": "1621d3694be6803e6c423da38fd8b95bbb16e4b34cf5e8fdf6535c6ac731b1f1"
+    "sha256": "d1fc3f110924927bec5f148c0a97fc47e08dc7d1e4cf41555bb861a1d0554c3c"
   },
   "original_game_files_included": false,
   "package_entries": [
-    "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75-Patcher.exe",
+    "XBOX-Fatal-Frame-II-Crimson-Butterfly-Kr-v0.8-Patcher.exe",
     "licenses/BLAKE3-Apache-2.0.txt",
     "licenses/PyInstaller-COPYING.txt",
     "licenses/Python-LICENSE.txt",

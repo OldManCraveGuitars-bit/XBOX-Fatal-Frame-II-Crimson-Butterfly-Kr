@@ -130,7 +130,7 @@ def apply_patch(source, destination, bundle, xdelta, bundle_sha256,
             for item in manifest['metadata']:
                 output.seek(item['offset'])
                 output.write(checked_member(archive, item['payload'], item['sha256']))
-            with tempfile.TemporaryDirectory(prefix='.ffii-v075-', dir=destination.parent) as work:
+            with tempfile.TemporaryDirectory(prefix='.ffii-v08-', dir=destination.parent) as work:
                 work = Path(work)
                 for index, item in enumerate(manifest['files']):
                     if item.get('delta'):

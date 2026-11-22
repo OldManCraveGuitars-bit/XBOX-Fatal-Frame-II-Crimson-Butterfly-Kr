@@ -16,6 +16,7 @@ def sha(data):
 
 
 def build(source, target, xdelta, destination):
+    config = json.loads((ROOT / 'patcher/release-config.json').read_text(encoding='utf-8'))
     original, translated = Disc(source), Disc(target)
     oldfiles = {x['path']: x for x in original.entries if not x['directory']}
     newfiles = {x['path']: x for x in translated.entries if not x['directory']}
@@ -25,9 +26,15 @@ def build(source, target, xdelta, destination):
         source_hash = hashlib.file_digest(stream, 'sha256').hexdigest()
     with Path(target).open('rb') as stream:
         target_hash = hashlib.file_digest(stream, 'sha256').hexdigest()
-    manifest = dict(format='ffii-xiso-vcdiff-1', version='v0.75',
-                    source=dict(name='Fatal Frame II - Crimson Butterfly (Japan).iso', size=original.length, sha256=source_hash),
-                    target=dict(name='Fatal-Frame-II-Crimson-Butterfly-Kr-v0.75.xiso.iso', size=translated.length, sha256=target_hash),
+    if (original.length, source_hash) != (config['source']['size'], config['source']['sha256']):
+        raise ValueError('Source ISO differs from release configuration')
+    if (translated.length, target_hash) != (config['target']['size'], config['target']['sha256']):
+        raise ValueError('Target ISO differs from release configuration')
+    old_xbe, new_xbe = oldfiles['default.xbe'], newfiles['default.xbe']
+    if original.read(old_xbe['offset'], old_xbe['size']) != translated.read(new_xbe['offset'], new_xbe['size']):
+        raise ValueError('Resource-only release must preserve default.xbe byte-for-byte')
+    manifest = dict(format='ffii-xiso-vcdiff-1', version=config['version'],
+                    source=config['source'], target=config['target'],
                     metadata=[], files=[])
     destination = Path(destination)
     if destination.exists():
